@@ -30,7 +30,7 @@
                     <template x-if="streamsActivos.includes(c.id)">
                         <img :src="`http://localhost:8001/stream/video/${c.id}`"
                              style="width:100%; height:100%; object-fit:cover; display:block;"
-                             @error="streamsActivos = streamsActivos.filter(id => id !== c.id)">
+                             @@error="streamsActivos = streamsActivos.filter(id => id !== c.id)">
                     </template>
                     <template x-if="!streamsActivos.includes(c.id)">
                         <div style="text-align:center; color:var(--text-muted);">
@@ -90,7 +90,7 @@
 </div>
 
 <style>
-@keyframes borderPulse {
+@@keyframes borderPulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.3; }
 }
@@ -170,7 +170,13 @@ function liveApp() {
 
         nivelIcon(nivel) { return { critico: '🚨', advertencia: '⚠️', info: '📌' }[nivel] || '🔔'; },
         tipoLabel(tipo) {
-            return { persona_restringida: '🚫 Persona Restringida', desconocido: '❓ Desconocido', rostro_detectado: '✅ Rostro Detectado' }[tipo] || tipo;
+            return {
+                persona_restringida: '🚫 Persona Restringida',
+                desconocido: '❓ Desconocido',
+                rostro_detectado: '✅ Rostro Detectado',
+                sin_tapaboca: '😷 Sin Tapaboca',
+                sin_casco: '⛑️ Sin Casco',
+            }[tipo] || tipo;
         },
         formatHora(ts) { return ts ? new Date(ts).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''; },
     };

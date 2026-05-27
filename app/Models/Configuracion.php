@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Configuracion extends Model
 {
+    protected $table = 'configuraciones';
     protected $fillable = ['clave', 'valor', 'descripcion'];
 
     public static function get(string $clave, mixed $default = null): mixed

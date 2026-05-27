@@ -8,11 +8,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Persona extends Model
 {
     protected $fillable = [
-        'nombre', 'apellido', 'documento', 'tipo', 'foto_referencia', 'activo', 'notas',
+        'nombre', 'apellido', 'documento', 'tipo', 'foto_referencia', 'fotos_ia', 'activo', 'notas',
     ];
 
+    protected $appends = ['nombre_completo'];
+
     protected $casts = [
-        'activo' => 'boolean',
+        'activo'   => 'boolean',
+        'fotos_ia' => 'array',
     ];
 
     public function getNombreCompletoAttribute(): string

@@ -23,11 +23,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
 
     Route::apiResource('personas', PersonaController::class);
+    Route::delete('/personas/{persona}/fotos/{index}', [PersonaController::class, 'destroyFoto']);
     Route::apiResource('camaras', CamaraController::class);
     Route::patch('/camaras/{camara}/toggle', [CamaraController::class, 'toggleEstado']);
 
     Route::get('/alertas/pendientes', [AlertaController::class, 'pendientes']);
     Route::post('/alertas/revisar-todas', [AlertaController::class, 'marcarTodasRevisadas']);
+    Route::delete('/alertas', [AlertaController::class, 'destroyAll']);
     Route::apiResource('alertas', AlertaController::class)->only(['index', 'show', 'destroy']);
     Route::patch('/alertas/{alerta}/revisar', [AlertaController::class, 'marcarRevisada']);
 

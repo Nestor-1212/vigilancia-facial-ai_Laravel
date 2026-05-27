@@ -3,6 +3,12 @@
 @section('title', 'Configuración — VigiFacial')
 @section('page-title', '⚙️ Configuración del Sistema')
 
+@push('scripts')
+<script>
+(function(){ const u = JSON.parse(localStorage.getItem('user') || '{}'); if (u.rol !== 'admin') window.location.href = '/dashboard'; })();
+</script>
+@endpush
+
 @section('content')
 <div x-data="configApp()" x-init="init()">
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
@@ -68,16 +74,15 @@
                     <div style="font-size:14px; font-weight:600; margin-bottom:3px;">Sin Tapaboca / Mascarilla</div>
                     <div style="font-size:11px; color:var(--text-muted);">Alerta cuando se detecte una persona sin mascarilla en cámara</div>
                 </div>
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:8px; cursor:pointer; flex-shrink:0;"
+                     @click="config.deteccion_tapaboca = !config.deteccion_tapaboca; autoGuardar()">
                     <div style="position:relative; display:inline-block; width:44px; height:24px;">
-                        <input type="checkbox" x-model="config.deteccion_tapaboca" style="opacity:0; width:0; height:0; position:absolute;">
-                        <div :style="`position:absolute; inset:0; background:${config.deteccion_tapaboca ? '#f59e0b' : 'var(--border)'}; border-radius:12px; transition:background .2s; cursor:pointer;`"
-                             @click="config.deteccion_tapaboca = !config.deteccion_tapaboca"></div>
+                        <div :style="`position:absolute; inset:0; background:${config.deteccion_tapaboca ? '#f59e0b' : 'var(--border)'}; border-radius:12px; transition:background .2s; cursor:pointer;`"></div>
                         <div :style="`position:absolute; top:3px; left:${config.deteccion_tapaboca ? '23px' : '3px'}; width:18px; height:18px; background:white; border-radius:50%; transition:left .2s; pointer-events:none;`"></div>
                     </div>
                     <span style="font-size:12px; font-weight:600;" :style="`color:${config.deteccion_tapaboca ? '#f59e0b' : 'var(--text-muted)'}`"
                           x-text="config.deteccion_tapaboca ? 'Activo' : 'Inactivo'"></span>
-                </label>
+                </div>
             </div>
 
             <!-- Casco -->
@@ -93,16 +98,15 @@
                     <div style="font-size:14px; font-weight:600; margin-bottom:3px;">Sin Casco de Seguridad</div>
                     <div style="font-size:11px; color:var(--text-muted);">Alerta cuando se detecte una persona sin casco en zona de riesgo</div>
                 </div>
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:8px; cursor:pointer; flex-shrink:0;"
+                     @click="config.deteccion_casco = !config.deteccion_casco; autoGuardar()">
                     <div style="position:relative; display:inline-block; width:44px; height:24px;">
-                        <input type="checkbox" x-model="config.deteccion_casco" style="opacity:0; width:0; height:0; position:absolute;">
-                        <div :style="`position:absolute; inset:0; background:${config.deteccion_casco ? '#f59e0b' : 'var(--border)'}; border-radius:12px; transition:background .2s; cursor:pointer;`"
-                             @click="config.deteccion_casco = !config.deteccion_casco"></div>
+                        <div :style="`position:absolute; inset:0; background:${config.deteccion_casco ? '#f59e0b' : 'var(--border)'}; border-radius:12px; transition:background .2s; cursor:pointer;`"></div>
                         <div :style="`position:absolute; top:3px; left:${config.deteccion_casco ? '23px' : '3px'}; width:18px; height:18px; background:white; border-radius:50%; transition:left .2s; pointer-events:none;`"></div>
                     </div>
                     <span style="font-size:12px; font-weight:600;" :style="`color:${config.deteccion_casco ? '#f59e0b' : 'var(--text-muted)'}`"
                           x-text="config.deteccion_casco ? 'Activo' : 'Inactivo'"></span>
-                </label>
+                </div>
             </div>
 
             <!-- Modo activo combinado -->
@@ -262,6 +266,21 @@ function configApp() {
             } finally {
                 this.guardando = false;
             }
+        },
+
+        async autoGuardar() {
+            try {
+                const res = await fetch('/api/configuracion', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + (localStorage.getItem('token') || ''),
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify(this.config),
+                });
+                if (res.ok) this.mostrarToast('✅ Guardado automáticamente');
+            } catch (e) {}
         },
 
         mostrarToast(msg) {

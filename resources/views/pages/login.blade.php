@@ -117,6 +117,13 @@
             border-color: #3b82f6;
             box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
         }
+        /* Ocultar el ojo nativo del browser en campos password */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear,
+        input[type="password"]::-webkit-contacts-auto-fill-button,
+        input[type="password"]::-webkit-credentials-auto-fill-button {
+            display: none !important;
+        }
 
         .btn-login {
             width: 100%;
@@ -174,7 +181,7 @@
     <!-- Panel izquierdo -->
     <div class="login-left">
         <div class="brand">
-            <div class="brand-icon">👁️</div>
+         
             <div>
                 <div class="brand-name">VigiFacial</div>
                 <div class="brand-sub">Sistema de Reconocimiento Facial</div>

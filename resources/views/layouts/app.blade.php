@@ -339,21 +339,27 @@
             <span class="nav-badge" id="sidebar-alertas-badge" style="display:none">0</span>
         </a>
 
-        <div class="nav-section-label">Gestión</div>
-        <a href="/personas" class="nav-item {{ request()->is('personas*') ? 'active' : '' }}">
-            <span class="icon">👥</span> Personas
-        </a>
-        <a href="/camaras" class="nav-item {{ request()->is('camaras*') ? 'active' : '' }}">
-            <span class="icon">📷</span> Cámaras
-        </a>
+        <template x-if="esAdmin()">
+            <div>
+                <div class="nav-section-label">Gestión</div>
+                <a href="/personas" class="nav-item {{ request()->is('personas*') ? 'active' : '' }}">
+                    <span class="icon">👥</span> Personas
+                </a>
+                <a href="/camaras" class="nav-item {{ request()->is('camaras*') ? 'active' : '' }}">
+                    <span class="icon">📷</span> Cámaras
+                </a>
+            </div>
+        </template>
 
         <div class="nav-section-label">Sistema</div>
         <a href="/reportes" class="nav-item {{ request()->is('reportes*') ? 'active' : '' }}">
             <span class="icon">📋</span> Reportes
         </a>
-        <a href="/configuracion" class="nav-item {{ request()->is('configuracion*') ? 'active' : '' }}">
-            <span class="icon">⚙️</span> Configuración
-        </a>
+        <template x-if="esAdmin()">
+            <a href="/configuracion" class="nav-item {{ request()->is('configuracion*') ? 'active' : '' }}">
+                <span class="icon">⚙️</span> Configuración
+            </a>
+        </template>
     </div>
 
     <div class="sidebar-user">
@@ -396,7 +402,11 @@
 
 <script>
 function appLayout() {
-    return { darkMode: true };
+    return {
+        darkMode: true,
+        _user: JSON.parse(localStorage.getItem('user') || '{}'),
+        esAdmin() { return this._user.rol === 'admin'; },
+    };
 }
 
 // ====== Reverb / WebSocket ======

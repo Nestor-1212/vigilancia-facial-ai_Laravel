@@ -3,6 +3,12 @@
 @section('title', 'Cámaras — VigiFacial')
 @section('page-title', '📷 Gestión de Cámaras')
 
+@push('scripts')
+<script>
+(function(){ const u = JSON.parse(localStorage.getItem('user') || '{}'); if (u.rol !== 'admin') window.location.href = '/dashboard'; })();
+</script>
+@endpush
+
 @section('content')
 <div x-data="camarasApp()" x-init="init()">
 
@@ -57,13 +63,22 @@
                     <div style="font-size:11px; color:var(--text-muted); margin-top:4px; font-family:monospace; word-break:break-all;" x-text="c.rtsp_url"></div>
                 </div>
 
-                <div style="display:flex; gap:8px; padding-top:8px; border-top:1px solid var(--border);">
-                    <div style="font-size:12px; color:var(--text-muted);">
+                <div style="display:flex; gap:8px; padding-top:8px; border-top:1px solid var(--border); flex-wrap:wrap;">
+                    <div style="font-size:12px; color:var(--text-muted); align-self:center;">
                         🔔 <span x-text="c.alertas_count ?? 0"></span> alertas
                     </div>
-                    <div style="margin-left:auto; display:flex; gap:6px;">
-                        <button class="btn btn-ghost btn-sm" @click="toggleEstado(c)"
-                            x-text="c.estado === 'activa' ? '⏸️ Pausar' : '▶️ Activar'"></button>
+                    <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
+                        <!-- Botón Iniciar / Detener stream Python -->
+                        <button x-show="!streamsActivos.includes(c.id)"
+                                class="btn btn-sm" style="background:#10b981; color:white; border:none;"
+                                @click="iniciarStream(c)" title="Iniciar procesamiento de video IA">
+                            ▶️ Stream
+                        </button>
+                        <button x-show="streamsActivos.includes(c.id)"
+                                class="btn btn-danger btn-sm"
+                                @click="detenerStream(c)" title="Detener procesamiento de video IA">
+                            ⏹️ Stream
+                        </button>
                         <button class="btn btn-ghost btn-sm" @click="openModal(c)">✏️</button>
                         <button class="btn btn-danger btn-sm" @click="eliminar(c)">🗑️</button>
                     </div>
@@ -94,8 +109,11 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">URL RTSP *</label>
+                    <label class="form-label">URL / Fuente *</label>
                     <input class="form-control" x-model="form.rtsp_url" placeholder="rtsp://192.168.1.100:554/stream" required>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+                        💡 Para usar la cámara de tu laptop escribe: <strong>webcam:0</strong>
+                    </div>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                     <div class="form-group">
@@ -181,6 +199,51 @@ function camarasApp() {
             if (!confirm(`¿Eliminar cámara "${c.nombre}"?`)) return;
             await fetch(`/api/camaras/${c.id}`, { method: 'DELETE', headers: this.headers() });
             await this.load();
+        },
+
+        async iniciarStream(c) {
+            // Leer config para determinar el modo de detección
+            let modo = 'reconocimiento_facial';
+            try {
+                const cfg = await fetch('/api/configuracion', { headers: this.headers() });
+                if (cfg.ok) {
+                    const d = await cfg.json();
+                    const tapaboca = d.deteccion_tapaboca === '1' || d.deteccion_tapaboca === true;
+                    const casco    = d.deteccion_casco    === '1' || d.deteccion_casco    === true;
+                    if (tapaboca && casco) modo = 'ambos';
+                    else if (tapaboca)     modo = 'tapaboca';
+                    else if (casco)        modo = 'casco';
+                }
+            } catch (e) {}
+
+            try {
+                const res = await fetch('http://localhost:8001/stream/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ camara_id: c.id, rtsp_url: c.rtsp_url, nombre: c.nombre, modo }),
+                });
+                if (res.ok) {
+                    this.streamsActivos = [...this.streamsActivos, c.id];
+                    // Marcar activa en Laravel si no lo está
+                    if (c.estado !== 'activa') {
+                        await fetch(`/api/camaras/${c.id}/toggle`, { method: 'PATCH', headers: this.headers() });
+                        await this.load();
+                    }
+                    alert(`✅ Stream iniciado en modo: ${modo}`);
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert('❌ Error al iniciar stream: ' + (err.detail ?? res.status));
+                }
+            } catch (e) {
+                alert('❌ No se pudo conectar con el microservicio IA (¿está corriendo en localhost:8001?)');
+            }
+        },
+
+        async detenerStream(c) {
+            try {
+                await fetch(`http://localhost:8001/stream/stop/${c.id}`, { method: 'POST' });
+                this.streamsActivos = this.streamsActivos.filter(id => id !== c.id);
+            } catch (e) {}
         },
 
         headers() { return { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || ''), 'Accept': 'application/json' }; },

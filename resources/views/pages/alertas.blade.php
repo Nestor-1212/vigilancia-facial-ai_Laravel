@@ -26,27 +26,40 @@
         </div>
     </div>
 
-    <!-- Filtros -->
-    <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
+    <!-- Filtros y acciones masivas -->
+    <div style="display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
         <select class="form-control" style="max-width:150px;" x-model="filtros.nivel" @change="load()">
             <option value="">Todos los niveles</option>
             <option value="critico">🚨 Crítico</option>
             <option value="advertencia">⚠️ Advertencia</option>
             <option value="info">📌 Info</option>
         </select>
-        <select class="form-control" style="max-width:180px;" x-model="filtros.tipo" @change="load()">
+        <select class="form-control" style="max-width:200px;" x-model="filtros.tipo" @change="load()">
             <option value="">Todos los tipos</option>
-            <option value="persona_restringida">Persona Restringida</option>
-            <option value="desconocido">Desconocido</option>
-            <option value="rostro_detectado">Rostro Detectado</option>
+            <option value="persona_restringida">🚫 Persona Restringida</option>
+            <option value="desconocido">❓ Desconocido</option>
+            <option value="rostro_detectado">✅ Rostro Detectado</option>
+            <option value="sin_tapaboca">😷 Sin Tapaboca</option>
+            <option value="sin_casco">⛑️ Sin Casco</option>
         </select>
         <select class="form-control" style="max-width:150px;" x-model="filtros.revisada" @change="load()">
             <option value="">Todas</option>
             <option value="0">Solo pendientes</option>
             <option value="1">Solo revisadas</option>
         </select>
-        <button class="btn btn-ghost btn-sm" @click="marcarTodas()">✅ Marcar todas revisadas</button>
-        <div style="margin-left:auto; font-size:13px; color:var(--text-secondary);" x-text="`${meta.total ?? 0} alertas`"></div>
+
+        <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+            <span style="font-size:13px; color:var(--text-secondary);" x-text="`${meta.total ?? 0} alertas`"></span>
+            <div style="width:1px; height:20px; background:var(--border);"></div>
+            <button class="btn btn-ghost btn-sm" style="border-color:var(--success); color:var(--success);"
+                    @click="marcarTodas()" title="Marcar como revisadas todas las alertas del filtro actual">
+                ✅ Aceptar todas
+            </button>
+            <button class="btn btn-danger btn-sm"
+                    @click="eliminarTodas()" title="Eliminar permanentemente todas las alertas del filtro actual">
+                🗑️ Eliminar todas
+            </button>
+        </div>
     </div>
 
     <!-- Tabla -->
@@ -182,8 +195,20 @@ function alertasApp() {
         },
 
         async marcarTodas() {
-            if (!confirm('¿Marcar todas las alertas como revisadas?')) return;
-            await fetch('/api/alertas/revisar-todas', { method: 'POST', headers: this.headers() });
+            const desc = this.descripcionFiltro();
+            if (!confirm(`¿Marcar como revisadas todas las alertas${desc}?`)) return;
+            const params = new URLSearchParams(this.filtros);
+            Object.keys(this.filtros).forEach(k => !this.filtros[k] && params.delete(k));
+            await fetch(`/api/alertas/revisar-todas?${params}`, { method: 'POST', headers: this.headers() });
+            await Promise.all([this.load(), this.loadPendientes()]);
+        },
+
+        async eliminarTodas() {
+            const desc = this.descripcionFiltro();
+            if (!confirm(`¿Eliminar PERMANENTEMENTE todas las alertas${desc}?\n\nEsta acción no se puede deshacer.`)) return;
+            const params = new URLSearchParams(this.filtros);
+            Object.keys(this.filtros).forEach(k => !this.filtros[k] && params.delete(k));
+            await fetch(`/api/alertas?${params}`, { method: 'DELETE', headers: this.headers() });
             await Promise.all([this.load(), this.loadPendientes()]);
         },
 
@@ -193,13 +218,28 @@ function alertasApp() {
             await this.load();
         },
 
+        descripcionFiltro() {
+            const partes = [];
+            if (this.filtros.nivel)    partes.push({ critico: 'críticas', advertencia: 'de advertencia', info: 'informativas' }[this.filtros.nivel] || this.filtros.nivel);
+            if (this.filtros.tipo)     partes.push(this.tipoLabel(this.filtros.tipo));
+            if (this.filtros.revisada) partes.push(this.filtros.revisada === '0' ? 'pendientes' : 'revisadas');
+            return partes.length ? ` (${partes.join(', ')})` : '';
+        },
+
         verCaptura(url) { this.capturaUrl = url; },
 
         headers() { return { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || ''), 'Accept': 'application/json' }; },
         nivelIcon(nivel) { return { critico: '🚨', advertencia: '⚠️', info: '📌' }[nivel] || '🔔'; },
         nivelBadge(nivel) { return { critico: 'badge-danger', advertencia: 'badge-warning', info: 'badge-info' }[nivel] || 'badge-gray'; },
         tipoLabel(tipo) {
-            return { persona_restringida: '🚫 Persona Restringida', desconocido: '❓ Desconocido', rostro_detectado: '✅ Rostro Detectado', multiples_rostros: '👥 Múltiples Rostros' }[tipo] || tipo;
+            return {
+                persona_restringida: '🚫 Persona Restringida',
+                desconocido: '❓ Desconocido',
+                rostro_detectado: '✅ Rostro Detectado',
+                multiples_rostros: '👥 Múltiples Rostros',
+                sin_tapaboca: '😷 Sin Tapaboca',
+                sin_casco: '⛑️ Sin Casco',
+            }[tipo] || tipo;
         },
         formatTs(ts) {
             if (!ts) return '—';

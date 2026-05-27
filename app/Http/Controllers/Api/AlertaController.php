@@ -59,6 +59,19 @@ class AlertaController extends Controller
         return response()->json(null, 204);
     }
 
+    public function destroyAll(Request $request): JsonResponse
+    {
+        $query = Alerta::query();
+        if ($request->filled('nivel'))   $query->where('nivel',    $request->nivel);
+        if ($request->filled('tipo'))    $query->where('tipo',     $request->tipo);
+        if ($request->filled('revisada')) $query->where('revisada', $request->boolean('revisada'));
+
+        $count = $query->count();
+        $query->delete();
+
+        return response()->json(['eliminadas' => $count]);
+    }
+
     // Método extra: resumen de alertas no revisadas
     public function pendientes(): JsonResponse
     {
