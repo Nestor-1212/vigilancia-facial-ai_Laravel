@@ -41,6 +41,7 @@
             <option value="rostro_detectado">✅ Rostro Detectado</option>
             <option value="sin_tapaboca">😷 Sin Tapaboca</option>
             <option value="sin_casco">⛑️ Sin Casco</option>
+            <option value="celular_en_mano">📱 Celular en Mano</option>
         </select>
         <select class="form-control" style="max-width:150px;" x-model="filtros.revisada" @change="load()">
             <option value="">Todas</option>
@@ -239,6 +240,7 @@ function alertasApp() {
                 multiples_rostros: '👥 Múltiples Rostros',
                 sin_tapaboca: '😷 Sin Tapaboca',
                 sin_casco: '⛑️ Sin Casco',
+                celular_en_mano: '📱 Celular en Mano',
             }[tipo] || tipo;
         },
         formatTs(ts) {

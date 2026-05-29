@@ -91,6 +91,7 @@
                 border: 1px solid var(--border);
                 border-radius: 10px;
                 padding: 14px 16px;
+                margin-bottom: 12px;
                 display: flex; align-items: center; gap: 14px;
             ">
                 <span style="font-size:28px; line-height:1;">⛑️</span>
@@ -109,13 +110,36 @@
                 </div>
             </div>
 
+            <!-- Celular -->
+            <div style="
+                background: var(--bg-primary);
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                padding: 14px 16px;
+                display: flex; align-items: center; gap: 14px;
+            ">
+                <span style="font-size:28px; line-height:1;">📱</span>
+                <div style="flex:1;">
+                    <div style="font-size:14px; font-weight:600; margin-bottom:3px;">Uso de Celular en Mano</div>
+                    <div style="font-size:11px; color:var(--text-muted);">Alerta y registra sesión cuando se detecte un celular en la mano con YOLOv8</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; cursor:pointer; flex-shrink:0;"
+                     @click="config.deteccion_celular = !config.deteccion_celular; autoGuardar()">
+                    <div style="position:relative; display:inline-block; width:44px; height:24px;">
+                        <div :style="`position:absolute; inset:0; background:${config.deteccion_celular ? '#f59e0b' : 'var(--border)'}; border-radius:12px; transition:background .2s; cursor:pointer;`"></div>
+                        <div :style="`position:absolute; top:3px; left:${config.deteccion_celular ? '23px' : '3px'}; width:18px; height:18px; background:white; border-radius:50%; transition:left .2s; pointer-events:none;`"></div>
+                    </div>
+                    <span style="font-size:12px; font-weight:600;" :style="`color:${config.deteccion_celular ? '#f59e0b' : 'var(--text-muted)'}`"
+                          x-text="config.deteccion_celular ? 'Activo' : 'Inactivo'"></span>
+                </div>
+            </div>
+
             <!-- Modo activo combinado -->
-            <div x-show="config.deteccion_tapaboca || config.deteccion_casco"
+            <div x-show="config.deteccion_tapaboca || config.deteccion_casco || config.deteccion_celular"
                  style="margin-top:12px; padding:10px 12px; background:rgba(245,158,11,0.1); border-radius:8px; font-size:12px; color:#f59e0b;">
                 <strong>Modo activo:</strong>
                 <span x-text="modoEPP()"></span>
-                — el stream de la cámara usará detección
-                <span x-text="config.deteccion_tapaboca && config.deteccion_casco ? '&quot;ambos&quot;' : (config.deteccion_tapaboca ? '&quot;tapaboca&quot;' : '&quot;casco&quot;')"></span>.
+                — el stream usará modo <span x-text="`&quot;${modoStr()}&quot;`"></span>.
             </div>
         </div>
 
@@ -190,6 +214,7 @@ function configApp() {
             guardar_capturas_desconocidos: true,
             deteccion_tapaboca: false,
             deteccion_casco: false,
+            deteccion_celular: false,
         },
         estadoIA: 'verificando...',
         guardando: false,
@@ -238,10 +263,28 @@ function configApp() {
         },
 
         modoEPP() {
-            if (this.config.deteccion_tapaboca && this.config.deteccion_casco) return 'Tapaboca + Casco (ambos)';
-            if (this.config.deteccion_tapaboca) return 'Solo Tapaboca';
-            if (this.config.deteccion_casco) return 'Solo Casco';
-            return '';
+            const t = this.config.deteccion_tapaboca;
+            const c = this.config.deteccion_casco;
+            const p = this.config.deteccion_celular;
+            const partes = [];
+            if (t && c) partes.push('Tapaboca + Casco');
+            else { if (t) partes.push('Tapaboca'); if (c) partes.push('Casco'); }
+            if (p) partes.push('Celular');
+            return partes.join(' + ');
+        },
+
+        modoStr() {
+            const t = this.config.deteccion_tapaboca;
+            const c = this.config.deteccion_casco;
+            const p = this.config.deteccion_celular;
+            if (t && c && p) return 'ambos_celular';
+            if (t && c)      return 'ambos';
+            if (t && p)      return 'tapaboca_celular';
+            if (c && p)      return 'casco_celular';
+            if (t)           return 'tapaboca';
+            if (c)           return 'casco';
+            if (p)           return 'celular';
+            return 'reconocimiento_facial';
         },
 
         async guardar() {
@@ -258,6 +301,7 @@ function configApp() {
                 });
                 if (res.ok) {
                     this.mostrarToast('✅ Configuración guardada correctamente');
+                    await this.reiniciarStreamsActivos();
                 } else {
                     this.mostrarToast('❌ Error al guardar');
                 }
@@ -279,7 +323,30 @@ function configApp() {
                     },
                     body: JSON.stringify(this.config),
                 });
-                if (res.ok) this.mostrarToast('✅ Guardado automáticamente');
+                if (res.ok) {
+                    this.mostrarToast('✅ Guardado automáticamente');
+                    await this.reiniciarStreamsActivos();
+                }
+            } catch (e) {}
+        },
+
+        async reiniciarStreamsActivos() {
+            try {
+                const r = await fetch('http://localhost:8001/stream/list');
+                if (!r.ok) return;
+                const d = await r.json();
+                if (!d.streams || d.streams.length === 0) return;
+
+                const modo = this.modoStr();
+                for (const s of d.streams) {
+                    await fetch(`http://localhost:8001/stream/stop/${s.camara_id}`, { method: 'POST' });
+                    await fetch('http://localhost:8001/stream/start', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ camara_id: s.camara_id, rtsp_url: s.url, nombre: s.nombre, modo }),
+                    });
+                }
+                this.mostrarToast(`🔄 ${d.streams.length} stream(s) actualizados → modo "${modo}"`);
             } catch (e) {}
         },
 

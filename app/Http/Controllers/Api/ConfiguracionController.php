@@ -20,6 +20,7 @@ class ConfiguracionController extends Controller
         'guardar_capturas_desconocidos',
         'deteccion_tapaboca',
         'deteccion_casco',
+        'deteccion_celular',
     ];
 
     public function index(): JsonResponse
@@ -44,6 +45,7 @@ class ConfiguracionController extends Controller
             'guardar_capturas_desconocidos'=> 'nullable|boolean',
             'deteccion_tapaboca'           => 'nullable|boolean',
             'deteccion_casco'              => 'nullable|boolean',
+            'deteccion_celular'            => 'nullable|boolean',
         ]);
 
         foreach ($data as $clave => $valor) {

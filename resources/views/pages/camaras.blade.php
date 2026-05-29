@@ -51,8 +51,11 @@
                             <div class="badge badge-danger">Error</div>
                         </div>
                     </template>
-                    <div x-show="streamsActivos.includes(c.id)" style="position:absolute; top:6px; left:6px;">
+                    <div x-show="streamsActivos.includes(c.id)" style="position:absolute; top:6px; left:6px; display:flex; flex-direction:column; gap:4px;">
                         <span class="badge badge-danger" style="font-size:10px; padding:2px 6px;"><span class="live-dot" style="width:5px;height:5px;"></span> LIVE</span>
+                        <span x-show="streamsModo[c.id]"
+                              style="font-size:10px; background:rgba(0,0,0,0.72); padding:2px 6px; border-radius:6px; color:#fbbf24; font-weight:600; white-space:nowrap;"
+                              x-text="modoBadge(streamsModo[c.id])"></span>
                     </div>
                     <div style="position:absolute; top:6px; right:6px; font-size:10px; background:rgba(0,0,0,0.6); padding:2px 8px; border-radius:10px; color:var(--text-secondary);" x-text="c.ip ?? ''"></div>
                 </div>
@@ -92,6 +95,11 @@
             </div>
         </template>
     </div>
+
+    <!-- Toast -->
+    <div x-show="toastMsg" x-transition
+         style="position:fixed; bottom:24px; right:24px; background:#10b981; color:white; padding:12px 20px; border-radius:10px; font-size:13px; font-weight:600; z-index:9999; box-shadow:0 4px 20px rgba(0,0,0,0.3);"
+         x-text="toastMsg"></div>
 
     <!-- Modal -->
     <div class="modal-overlay" :class="{ open: modalAbierto }">
@@ -152,8 +160,9 @@
 <script>
 function camarasApp() {
     return {
-        camaras: [], streamsActivos: [], loading: false,
+        camaras: [], streamsActivos: [], streamsModo: {}, loading: false,
         modalAbierto: false, editando: null, guardando: false,
+        toastMsg: '',
         form: { nombre: '', ubicacion: '', rtsp_url: '', ip: '', estado: 'inactiva', grabacion_activa: false },
 
         async init() {
@@ -162,6 +171,7 @@ function camarasApp() {
                 const r = await fetch('http://localhost:8001/stream/list');
                 const d = await r.json();
                 this.streamsActivos = d.streams.map(s => s.camara_id);
+                this.streamsModo = Object.fromEntries(d.streams.map(s => [s.camara_id, s.modo || 'reconocimiento_facial']));
             } catch (e) {}
         },
 
@@ -207,12 +217,17 @@ function camarasApp() {
             try {
                 const cfg = await fetch('/api/configuracion', { headers: this.headers() });
                 if (cfg.ok) {
-                    const d = await cfg.json();
-                    const tapaboca = d.deteccion_tapaboca === '1' || d.deteccion_tapaboca === true;
-                    const casco    = d.deteccion_casco    === '1' || d.deteccion_casco    === true;
-                    if (tapaboca && casco) modo = 'ambos';
-                    else if (tapaboca)     modo = 'tapaboca';
-                    else if (casco)        modo = 'casco';
+                    const d   = await cfg.json();
+                    const tap = d.deteccion_tapaboca === '1' || d.deteccion_tapaboca === true;
+                    const cas = d.deteccion_casco    === '1' || d.deteccion_casco    === true;
+                    const cel = d.deteccion_celular  === '1' || d.deteccion_celular  === true;
+                    if      (tap && cas && cel) modo = 'ambos_celular';
+                    else if (tap && cas)        modo = 'ambos';
+                    else if (tap && cel)        modo = 'tapaboca_celular';
+                    else if (cas && cel)        modo = 'casco_celular';
+                    else if (tap)               modo = 'tapaboca';
+                    else if (cas)               modo = 'casco';
+                    else if (cel)               modo = 'celular';
                 }
             } catch (e) {}
 
@@ -224,18 +239,18 @@ function camarasApp() {
                 });
                 if (res.ok) {
                     this.streamsActivos = [...this.streamsActivos, c.id];
-                    // Marcar activa en Laravel si no lo está
+                    this.streamsModo[c.id] = modo;
                     if (c.estado !== 'activa') {
                         await fetch(`/api/camaras/${c.id}/toggle`, { method: 'PATCH', headers: this.headers() });
                         await this.load();
                     }
-                    alert(`✅ Stream iniciado en modo: ${modo}`);
+                    this.mostrarToast(`✅ Stream iniciado · modo: ${this.modoBadge(modo)}`);
                 } else {
                     const err = await res.json().catch(() => ({}));
-                    alert('❌ Error al iniciar stream: ' + (err.detail ?? res.status));
+                    this.mostrarToast('❌ Error al iniciar stream: ' + (err.detail ?? res.status));
                 }
             } catch (e) {
-                alert('❌ No se pudo conectar con el microservicio IA (¿está corriendo en localhost:8001?)');
+                this.mostrarToast('❌ No se pudo conectar con el microservicio IA (¿está corriendo en localhost:8001?)');
             }
         },
 
@@ -243,7 +258,28 @@ function camarasApp() {
             try {
                 await fetch(`http://localhost:8001/stream/stop/${c.id}`, { method: 'POST' });
                 this.streamsActivos = this.streamsActivos.filter(id => id !== c.id);
+                delete this.streamsModo[c.id];
+                this.mostrarToast(`⏹️ Stream detenido: ${c.nombre}`);
             } catch (e) {}
+        },
+
+        modoBadge(modo) {
+            const etiquetas = {
+                'reconocimiento_facial': '🧑 Facial',
+                'tapaboca':              '😷 Tapaboca',
+                'casco':                 '⛑️ Casco',
+                'ambos':                 '😷⛑️ EPP',
+                'celular':               '📱 Celular',
+                'tapaboca_celular':      '😷📱 Tap+Cel',
+                'casco_celular':         '⛑️📱 Cas+Cel',
+                'ambos_celular':         '😷⛑️📱 EPP+Cel',
+            };
+            return etiquetas[modo] ?? modo;
+        },
+
+        mostrarToast(msg) {
+            this.toastMsg = msg;
+            setTimeout(() => this.toastMsg = '', 3500);
         },
 
         headers() { return { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || ''), 'Accept': 'application/json' }; },

@@ -319,7 +319,7 @@
 <!-- SIDEBAR -->
 <nav id="sidebar">
     <div class="sidebar-logo">
-        <div class="logo-icon">👁️</div>
+        <div class="logo-icon"></div>
         <div>
             <div class="logo-text">VigiFacial</div>
             <div class="logo-sub">Sistema de Vigilancia</div>
@@ -352,8 +352,11 @@
         </template>
 
         <div class="nav-section-label">Sistema</div>
-        <a href="/reportes" class="nav-item {{ request()->is('reportes*') ? 'active' : '' }}">
+        <a href="/reportes" class="nav-item {{ request()->is('reportes') ? 'active' : '' }}">
             <span class="icon">📋</span> Reportes
+        </a>
+        <a href="/reportes/celular" class="nav-item {{ request()->is('reportes/celular') ? 'active' : '' }}">
+            <span class="icon">📱</span> Uso de Celular
         </a>
         <template x-if="esAdmin()">
             <a href="/configuracion" class="nav-item {{ request()->is('configuracion*') ? 'active' : '' }}">
@@ -436,8 +439,9 @@ function showToast(alerta) {
         multiples_rostros: 'Múltiples Rostros',
         sin_tapaboca: 'Sin Tapaboca Detectado',
         sin_casco: 'Sin Casco de Seguridad',
+        celular_en_mano: 'Celular Detectado en Mano',
     };
-    const icons = { critico: '🚨', advertencia: '⚠️', info: '📌', sin_tapaboca: '😷', sin_casco: '⛑️' };
+    const icons = { critico: '🚨', advertencia: '⚠️', info: '📌', sin_tapaboca: '😷', sin_casco: '⛑️', celular_en_mano: '📱' };
 
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');

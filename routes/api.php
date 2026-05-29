@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AlertaController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CamaraController;
+use App\Http\Controllers\Api\CelularController;
 use App\Http\Controllers\Api\ConfiguracionController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\FacialController;
@@ -12,8 +13,9 @@ use Illuminate\Support\Facades\Route;
 // Auth pública
 Route::post('/auth/login', [AuthController::class, 'login']);
 
-// Webhook del microservicio Python (IP restringida en producción)
+// Webhooks del microservicio Python (IP restringida en producción)
 Route::post('/facial/procesar', [FacialController::class, 'procesar']);
+Route::post('/celular/procesar', [CelularController::class, 'procesar']);
 
 // Rutas autenticadas
 Route::middleware('auth:sanctum')->group(function () {
@@ -37,4 +39,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/configuracion', [ConfiguracionController::class, 'index']);
     Route::post('/configuracion', [ConfiguracionController::class, 'update']);
+
+    Route::get('/celular/reportes', [CelularController::class, 'reportes']);
+    Route::delete('/celular/registros', [CelularController::class, 'destroyAll']);
+    Route::delete('/celular/registros/{id}', [CelularController::class, 'destroy']);
 });
